@@ -1,48 +1,37 @@
-import FluentSQLite
+import FluentMySQL
 import Vapor
 
-/// Called before your application initializes.
-///
-/// https://docs.vapor.codes/3.0/getting-started/structure/#configureswift
 public func configure(
     _ config: inout Config,
     _ env: inout Environment,
     _ services: inout Services
-) throws {
-    /// Register providers first
-    try services.register(FluentSQLiteProvider())
-
-    /// Register routes to the router
+    ) throws {
+    // Step 2
+    try services.register(FluentMySQLProvider())
+    
     let router = EngineRouter.default()
     try routes(router)
     services.register(router, as: Router.self)
-
-    /// Register middleware
-    var middlewares = MiddlewareConfig() // Create _empty_ middleware config
-    /// middlewares.use(FileMiddleware.self) // Serves files from `Public/` directory
-    middlewares.use(DateMiddleware.self) // Adds `Date` header to responses
-    middlewares.use(ErrorMiddleware.self) // Catches errors and converts to HTTP response
+    
+    var middlewares = MiddlewareConfig()
+    middlewares.use(DateMiddleware.self)
+    middlewares.use(ErrorMiddleware.self)
     services.register(middlewares)
-
-    // Configure a SQLite database
-    let sqlite: SQLiteDatabase
-    if env.isRelease {
-        /// Create file-based SQLite db using $SQLITE_PATH from process env
-        sqlite = try SQLiteDatabase(storage: .file(path: Environment.get("SQLITE_PATH")!))
-    } else {
-        /// Create an in-memory SQLite database
-        sqlite = try SQLiteDatabase(storage: .memory)
-    }
-
-    /// Register the configured SQLite database to the database config.
+    
     var databases = DatabasesConfig()
-    databases.add(database: sqlite, as: .sqlite)
+    // Step 3
+    let databaseConfig = MySQLDatabaseConfig(
+        hostname: "localhost",
+        port: 3306,
+        username: "root",
+        password: "123456",
+        database: "lidy_test")
+    
+    let database = MySQLDatabase(config: databaseConfig)
+    databases.add(database: database, as: .mysql)
     services.register(databases)
-
-    /// Configure migrations
     var migrations = MigrationConfig()
-//    migrations.add(model: Todo.self, database: .sqlite)
-    migrations.add(model: Acronym.self, database: .sqlite)
+    // Step 4
+    migrations.add(model: Acronym.self, database: .mysql)
     services.register(migrations)
-
 }
